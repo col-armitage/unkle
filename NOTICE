@@ -1,0 +1,12 @@
+unkle -- the UNK Language Engine
+Copyright 2026 Armitage from the UDIC Discord - join at
+https://discord.com/invite/FWrGEamP62
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+unkle reads, but does not include, name files from ScummVM (GPL-3.0) and
+Pentagram (GPL-2.0), supplied by the user at run time.
+
+Ultima is a trademark of Electronic Arts Inc. unkle is not affiliated with
+or endorsed by Electronic Arts or Origin Systems. It includes no game data;
+it works on archives from the user's own copy of the game.
