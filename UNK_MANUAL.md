@@ -539,16 +539,46 @@ running, as handlers do, write `exclusive;` after it.
 
 ### 4.5 Module functions
 
-In a module every function is free-standing: `routine random(x : Number) :
-Number { ... }`. A module process has a prologue only where it has a tag,
-which decompiled modules write before the name: `process [[PT_DEFAULT,
-referent]] METHOD::enterConvo()`.
+A module's functions have no class of their own to run for, so how each
+is written decides whether it has an object at all:
 
-A routine in a module has no object of its own: its first parameter is at
-the start of the frame. A routine written `routine Item::toggleStatus(...)`
--- with a class in front -- takes the caller's object as a hidden first
-argument, and is called on an object like an intrinsic
-(`npc.toggleStatus(INVISIBLE)`, section 8.3).
+| Written | Object | Parameters | Called |
+|---|---|---|---|
+| `process WATRSPEL::cast(...)` -- the module's own name in front, as decompiled files write them | the caller's object, as `referent` | after the hidden object | `WATRSPEL::cast()` from a class; bare from the same module |
+| `process cast(...)`, or a first parameter named `arg0` | none -- `referent` means nothing here | from the start of the frame | the same |
+| `routine Item::toggleStatus(...)` | the object it is called on | after the hidden object | `npc.toggleStatus(INVISIBLE)` (8.3) |
+
+The game's spell modules use the first form: AVATAR's old cheat menu
+called `ERTHSPEL::...` and the spell ran on the Avatar, its animations
+played with a bare `realDoAnim(...)`, and the functions it called inside
+the module received the Avatar too. FREE's `wait(time)` and `random(x)` use
+the second. Use the first for anything that acts on a character:
+
+```unk
+// a spell added to an existing module
+process WATRSPEL::sparkle()
+{
+    [[544, referent]];
+    realDoAnim(AS_CAST1, Npc::getDir());
+    safePlaySFX(MAGIC2, 100);
+}
+```
+
+```unk
+// in the same mod
+process DEVON::look()
+{
+    WATRSPEL::sparkle();
+}
+```
+
+Devon casts. (unkle 1.0 compiled a new module function written the first
+way as though it had no object, so its parameters and `referent` were read
+from the wrong place; fixed in 1.0.1, found by the first mod built with it.)
+
+A module process has a prologue only where it has a tag, which decompiled
+modules write before the name: `process [[PT_DEFAULT, referent]]
+METHOD::enterConvo()`.
 
 ---
 
@@ -1551,7 +1581,17 @@ A new type class has a shape number nothing in the world uses, so its
 handlers never run by themselves. That is what makes adding classes safe,
 and it is why new code is reached by calls.
 
-### 13.5 Smaller traps
+### 13.5 A new module function must have an object to act on
+
+The first mod built with unkle added four spells to WATRSPEL. Every check
+passed; in the game three of them crashed, and none showed the Avatar's
+casting pose. The new functions were called without an object but laid
+out as though they had one, so every parameter, and `referent`, was read
+from the wrong slot. Fixed in the compiler (4.5). The rule to remember: a
+module function acts on whatever object its caller passes, and the game's
+callers pass the character.
+
+### 13.6 Smaller traps
 
 - `not` takes everything to the next `or` (6.1).
 - `&` and `|` bind as tightly as `*`: bracket them inside `+` and `-`

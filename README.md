@@ -1,6 +1,6 @@
 # unkle -- the UNK Language Engine
 
-*Version 1.0.0*
+*Version 1.0.1*
 
 `unkle` compiles and decompiles the scripts of **Ultima VIII: Pagan** -- the
 usecode archives `EUSECODE.FLX` (English), `FUSECODE.FLX` (French) and
