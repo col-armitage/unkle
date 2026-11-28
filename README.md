@@ -1,6 +1,6 @@
 # unkle -- the UNK Language Engine
 
-*Version 1.0.1*
+*Version 1.0.2*
 
 `unkle` compiles and decompiles the scripts of **Ultima VIII: Pagan** -- the
 usecode archives `EUSECODE.FLX` (English), `FUSECODE.FLX` (French) and
@@ -101,7 +101,7 @@ unkle -d ARCHIVE.FLX -o OUTPUT_DIR --intrinsics FILE [options]
 
 Writes the source folder `OUTPUT_DIR`, created if it does not exist. A
 folder that is not empty is refused unless you pass `--force`, which
-replaces the `npcs/`, `types/`, `modules/` and `.unkle/` it holds and leaves
+replaces the `npcs/`, `eggs/`, `types/`, `modules/` and `.unkle/` it holds and leaves
 anything else (your `custom/` layer, say) alone. Source files are UTF-8; `--encoding cp437` writes the game's own
 DOS encoding instead. Either is read back automatically.
 
@@ -171,6 +171,10 @@ What a compile reports:
 ```
 src/
   npcs/          one .unk per NPC class (npcclass)
+  eggs/          one .unk per egg class (eggclass): the classes the
+                 engine runs for usecode eggs, 0x47F + egg type. Sources
+                 decompiled before 1.0.2 keep them in npcs/ as npcclass;
+                 they still build
   types/         one .unk per item class (typeclass)
   modules/       one .unk per module: classes with no events, holding
                  routines other classes call (FREE, METHOD, the spells)
@@ -225,7 +229,14 @@ In `patch/`:
 
 A new class gets a free class number and slot. The game only runs a
 class's event handlers for objects of its shape, so reach new code from an
-existing class: a patched function that calls it.
+existing class: a patched function that calls it. A new `eggclass` is the
+exception: `unkle` prints its egg type, and a usecode egg of that type
+placed in the map runs it.
+
+Layers are read the same way whichever folder a class sits in (`npcs/`,
+`eggs/`, `types/`, `modules/`): a class is named by its file name. An
+override of an egg class may say `npcclass` or `eggclass` -- layers written
+for sources decompiled before 1.0.2 keep building.
 
 `--show-overlay DIR` writes each class a layer changed, as it is compiled.
 

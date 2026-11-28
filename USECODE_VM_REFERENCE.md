@@ -170,11 +170,18 @@ the right block, a directory slot and a name-table entry, nothing else.
 ### 3.6 Class kind is the id block
 
 The bytecode records no class kind and no base class. The engine maps NPC
-number *n* to class `0x0400 + n`, so a class in `0x0400`-`0x04FF` is an NPC
-class; a class with no event handlers at all is a module; anything else is
-a type class, run for objects whose shape is its id. Checked against every
-class whose source declares its kind: all agree. V2.12: 106 NPC classes,
-368 type classes, 42 modules.
+number *n* to class `0x0400 + n`, and runs a usecode egg's events on class
+`0x047F +` its egg type (the egg's quality). Both land in `0x0400`-`0x04FF`:
+the game's NPC classes are `0x0401`-`0x043D` and its egg classes
+`0x0480`-`0x04C9`, so unkle reads `0x047F` and above as an egg class
+(`eggclass`) and the rest of the block as an NPC class. Egg type 47 and 48
+eggs have no class: GLOBSWAP (`0x04B0`) finds them as templates, which
+pins the offset at `0x047F`. A class with no event handlers at all is a
+module; anything else is a type class, run for objects whose shape is its
+id. Checked against every class whose source declares its kind: all agree.
+V2.12: 46 NPC classes, 60 egg classes, 368 type classes, 42 modules. An
+egg class receives only `hatch` (48 of the 60 implement it, and no other
+class does), `enterFastArea` and `leaveFastArea`.
 
 ---
 

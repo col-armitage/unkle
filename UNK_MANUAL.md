@@ -64,6 +64,8 @@ The archive holds **classes**. A class belongs to a kind of object:
 
 - an **NPC class** (`npcclass`) to one character -- DEVON is Devon the
   fisherman;
+- an **egg class** (`eggclass`) to the invisible trigger objects called
+  eggs -- TOMB runs when the Avatar steps near Khumash-Gor's tomb;
 - a **type class** (`typeclass`) to every object of one shape -- every
   barrel, every potion of a kind;
 - a **module** to no object at all: a library of routines other classes
@@ -197,7 +199,8 @@ archive stores class names in capitals.
 Reserved words:
 
 ```
-npcclass typeclass inherits process routine unkroutine constant globalflag uses
+npcclass eggclass typeclass inherits process routine unkroutine constant
+globalflag uses
 if else while for to foreach where within cells units of in container
 recursive on surface switch case default return break suspend startup
 exclusive spawn not and or modulo true false
@@ -308,7 +311,8 @@ process Bell::use()
 
 | Kind | Declared | Its object | Class numbers |
 |---|---|---|---|
-| NPC class | `npcclass NAME inherits Npc` | one character: class `0x400 + n` belongs to NPC number `n` | `0x0400`-`0x04FF` |
+| NPC class | `npcclass NAME inherits Npc` | one character: class `0x400 + n` belongs to NPC number `n` | `0x0400`-`0x047E` |
+| egg class | `eggclass NAME inherits Egg` | every usecode egg of one egg type: class `0x47F + t` belongs to egg type `t` | `0x047F`-`0x04FF` |
 | type class | `typeclass NAME inherits Item` | every object whose shape number is the class number | the rest |
 | module | no declaration | none | the rest |
 
@@ -316,6 +320,20 @@ The class number *is* the connection: there is no table saying which class
 belongs to which object. The Avatar is NPC 1 and class `0x0401`, AVATAR;
 Devon is NPC 2, class `0x0402`. A type class is run for every object whose
 shape matches its number.
+
+An **egg** is an invisible object placed in the map that does something
+when the Avatar comes near: starts a scene, opens a door, raises monsters.
+A usecode egg's **egg type** is its quality (`getUnkEggType()`; the
+Avatar's debug menu shows it as "Egg type"), and the engine runs class
+`0x47F +` egg type: MAPTELE, egg type 1, is `0x0480`. Each egg also has an
+**egg id** (`getEggId()`, `setEggId(n)`) and a trigger range
+(`getEggXRange()`, `getEggYRange()`, `setEggXRange(n)`), which its class
+reads on `referent`. The game's 60 egg classes are `0x0480`-`0x04C9`, after
+its NPC classes (`0x0401`-`0x043D`). The keyword is the authors': the
+cancelled Lost Vale expansion's `SHADES.UNK` declares
+`eggclass EggShades inherits Egg`. A decompiled source keeps egg classes in
+`eggs/`; a source decompiled before unkle 1.0.2 has them in `npcs/`,
+declared `npcclass`, and still builds.
 
 A module is a class with no event handlers. Its functions are called by
 other classes and run on the caller's object. FREE and METHOD are the
@@ -364,9 +382,10 @@ result type. The functions are then defined outside it, each named
   characters and must not be an existing class's. The authors used longer
   names (`npcclass Aramina`, `typeclass TypeAirTitan`) that the archive does
   not keep; decompiled files use the archive name.
-- **`inherits`.** NPC classes inherit `Npc` and type classes `Item`. The
-  archive records no base class; unkle notes a mismatch (an `npcclass`
-  inheriting `Item`) and otherwise treats `inherits` as documentation.
+- **`inherits`.** NPC classes inherit `Npc`, egg classes `Egg` and type
+  classes `Item`. The archive records no base class; unkle notes a
+  mismatch (an `npcclass` inheriting `Item`) and otherwise treats
+  `inherits` as documentation.
 - **A module** has no declaration; its functions are written with the
   module's name (`process FREE::wait(...)`) or, as the authors did, with
   none (`process wait(...)`).
@@ -385,11 +404,36 @@ inside `wait` (section 5.8).
 ### 3.4 New classes
 
 A new class (in a mod's `new/` folder) gets a free class number of its
-kind: an NPC class one in the NPC block, a type class one outside it. It
-may have event handlers, but the engine will not run them on its own --
-nothing in the world has its number -- so it is reached when an existing
-class calls one of its functions. A module cannot be
-added; a type class with only plain functions does the same job.
+kind: an NPC class one below `0x047F`, an egg class one above it, a type
+class one outside the block. It may have event handlers, but the engine
+will not run them on its own -- nothing in the world has its number -- so
+it is reached when an existing class calls one of its functions. A module
+cannot be added; a type class with only plain functions does the same job.
+
+A new **egg class** is the exception that can be reached from the world:
+unkle prints its egg type (`egg type 75` for the first one on the shipped
+games, class `0x04CA`), and a usecode egg of that type placed in the map
+with a map editor runs its `hatch`. unkle never picks egg type 0 or a lone
+free number between the game's egg classes: GLOBSWAP copies scenery from
+eggs of types 47 and 48, which have no class and must stay that way.
+
+```unk
+eggclass Chime inherits Egg
+{
+    process hatch();
+}
+
+process Chime::hatch()
+{
+    if getEggId() = 0
+    {
+        setEggId(1);
+        Avatar.bark("A chime sounds somewhere.");
+    }
+}
+```
+
+The egg's id is its own small store: this one chimes once per egg.
 
 ---
 
@@ -461,6 +505,7 @@ slots the authors' sources implement:
 | `0x04` | `cachein()` | the object is loaded into the game | `0x213` |
 | `0x05` | `hit(r : Referent, vel : Word)` | the object hits `r` | `0x20B` |
 | `0x06` | `gotHit(r : Referent, vel : Word)` | the object is hit by `r` | `0x20C` |
+| `0x07` | `hatch()` | (eggs) the Avatar comes within the egg's range | `0x210` |
 | `0x08` | `schedule(currentTime : Long)` | (NPCs) time to check where to be | `0x215` |
 | `0x0F` | `enterFastArea()` | the object comes into the active area around the Avatar | `0x21B` |
 | `0x10` | `leaveFastArea()` | the object leaves it | `0x21C` |
@@ -469,7 +514,12 @@ slots the authors' sources implement:
 | `0x13` | `AvatarStoleSomething(r : Referent)` | the Avatar took `r`, which is the NPC's | `0x22E` |
 | `0x15` | `guardianBark(n : Word)` | (AVATAR) the Guardian speaks | `0x200` (`PT_BARK`) |
 
-There are 32 slots in all. The other names -- `anim`, `hatch`, `release`,
+An egg receives only `hatch`, `enterFastArea` and `leaveFastArea`: 48 of
+the game's 60 egg classes implement `hatch`, the other 12 only the area
+events, and no other class implements `hatch`. unkle notes a new class
+that implements an event its kind is never sent.
+
+There are 32 slots in all. The other names -- `anim`, `release`,
 `equip`, `combine`, ... -- are in the names file the source folder carries
 (`.unkle/names.json`, `events`), and a process with one of those names is
 that slot's handler. The "process type" column is the type each handler
@@ -1451,7 +1501,8 @@ A mod is a folder -- a **layer** -- with up to three parts:
 
 - `new/` -- classes the game does not have, one per file;
 - `override/` -- a whole existing class, replacing the decompiled file
-  (same name, same kind);
+  (same name, same kind; `npcclass` and `eggclass` count as one, because
+  sources decompiled before 1.0.2 declare the egg classes `npcclass`);
 - `patch/` -- just the functions that change, for any classes:
   - a function with an existing name replaces it;
   - a new name adds the function at the end of its class;
@@ -1579,7 +1630,8 @@ An animation the game plays on a character is evidence for that character
 
 A new type class has a shape number nothing in the world uses, so its
 handlers never run by themselves. That is what makes adding classes safe,
-and it is why new code is reached by calls.
+and it is why new code is reached by calls. A new egg class is no
+different until an egg of its type is put in the map (3.4).
 
 ### 13.5 A new module function must have an object to act on
 
@@ -1647,7 +1699,8 @@ unit        = { uses | constant | globalflag | classdecl | function }
 uses        = "uses" STRING ";"
 constant    = "constant" NAME "=" expr ";"
 globalflag  = "globalflag" NAME ";"
-classdecl   = ("npcclass" | "typeclass") NAME [ "inherits" NAME ]
+classdecl   = ("npcclass" | "eggclass" | "typeclass") NAME
+              [ "inherits" NAME ]
               "{" { declfn } "}"
 declfn      = kind [ tag ] NAME params [ ":" type ] ";"
 kind        = "process" | "routine" | "unkroutine"
